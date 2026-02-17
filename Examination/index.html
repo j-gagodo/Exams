@@ -1,0 +1,1092 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR Dream Villa</title>
+    <script src="script/aframe.min.js"></script>
+</head>
+<body>
+    <script>
+        // --- TEXTURE GENERATOR SYSTEM ---
+        // Generates high-quality procedural textures for the Modern Villa
+        AFRAME.registerSystem('texture-generator', {
+            init: function() {
+                this.generateTextures();
+            },
+
+            generateTextures: function() {
+                const textures = {
+                    'concrete': { method: 'drawConcrete', color: '#f5f5f5', noise: 10 }, // White Stucco
+                    'concrete-dark': { method: 'drawConcrete', color: '#424242', noise: 15 }, // Dark Grey Feature
+                    'wood-slats': { method: 'drawModernWood', color: '#8d6e63', highlight: '#a1887f' }, // Warm Timber
+                    'marble': { method: 'drawMarble', color: '#ffffff', highlight: '#bdbdbd' }, // Polished Floor
+                    'pavers': { method: 'drawPavers', color: '#e0e0e0', highlight: '#ffffff' }, // Driveway/Patio
+                    'water': { method: 'drawWater', color: '#0288d1', highlight: '#81d4fa' },
+                    'grass': { method: 'drawGrass', color: '#388e3c', highlight: '#4caf50' },
+                    'sky': { method: 'drawSky', color: '#ffcc80', highlight: '#ff7043' }, // Sunset
+                    'fabric': { method: 'drawFabric', color: '#eeeeee', highlight: '#bdbdbd' }, // Sofa
+                    'pool-tiles': { method: 'drawPoolTiles', color: '#00bcd4', highlight: '#e0f7fa' }, // Pool specific tiles
+                    'caustics': { method: 'drawCaustics', color: '#fff', highlight: '#81d4fa' }, // Refracted light pattern
+                    'tiles': { method: 'drawPoolTiles', color: '#f5f5f5', highlight: '#ffffff' }, // Neutral Floor Tiles
+                    'stone': { method: 'drawConcrete', color: '#333333', noise: 10 } // Granite Countertop
+                };
+
+                for (let id in textures) {
+                    const canvas = document.createElement('canvas');
+                    canvas.id = 'tex-' + id;
+                    canvas.width = 1024;
+                    canvas.height = 1024;
+                    const ctx = canvas.getContext('2d');
+                    const params = textures[id];
+                    
+                    this[params.method](ctx, canvas.width, canvas.height, params);
+                    
+                    // Create asset item
+                    const img = document.createElement('img');
+                    img.id = id;
+                    img.src = canvas.toDataURL();
+                    document.querySelector('a-assets').appendChild(img);
+                }
+
+                setTimeout(() => {
+                    const loader = document.getElementById('loading');
+                    if (loader) {
+                        loader.style.opacity = 0;
+                        setTimeout(() => loader.remove(), 1000);
+                    }
+                }, 500);
+            },
+
+            drawConcrete: function(ctx, w, h, p) {
+                ctx.fillStyle = p.color;
+                ctx.fillRect(0, 0, w, h);
+                // Enhanced Stucco Texture Noise
+                for(let i=0; i<150000; i++) {
+                    ctx.fillStyle = Math.random() > 0.5 ? '#ffffff' : '#e0e0e0';
+                    ctx.globalAlpha = 0.15; // Increased contrast for design visibility
+                    ctx.fillRect(Math.random()*w, Math.random()*h, 2, 2);
+                }
+            },
+
+            drawModernWood: function(ctx, w, h, p) {
+                ctx.fillStyle = p.color;
+                ctx.fillRect(0, 0, w, h);
+                // Horizontal slats
+                const slatH = 64;
+                const gap = 4;
+                for(let y=0; y<h; y+=slatH) {
+                    // Slat gradient
+                    const grad = ctx.createLinearGradient(0, y, 0, y+slatH);
+                    grad.addColorStop(0, p.color);
+                    grad.addColorStop(1, p.highlight);
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, y, w, slatH-gap);
+                    
+                    // Grain
+                    for(let i=0; i<50; i++) {
+                        ctx.strokeStyle = '#5d4037';
+                        ctx.globalAlpha = 0.1;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(0, y + Math.random()*(slatH-gap));
+                        ctx.lineTo(w, y + Math.random()*(slatH-gap));
+                        ctx.stroke();
+                    }
+                    // Gap (dark)
+                    ctx.fillStyle = '#1a1a1a';
+                    ctx.globalAlpha = 0.8;
+                    ctx.fillRect(0, y+slatH-gap, w, gap);
+                }
+            },
+
+            drawMarble: function(ctx, w, h, p) {
+                ctx.fillStyle = p.color;
+                ctx.fillRect(0, 0, w, h);
+                // Soft Veins
+                for(let i=0; i<15; i++) {
+                    ctx.strokeStyle = p.highlight;
+                    ctx.globalAlpha = 0.2;
+                    ctx.lineWidth = 10 + Math.random() * 20;
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    ctx.beginPath();
+                    let x = Math.random() * w;
+                    let y = Math.random() * h;
+                    ctx.moveTo(x, y);
+                    for(let j=0; j<10; j++) {
+                        x += Math.random() * 400 - 200;
+                        y += Math.random() * 400 - 200;
+                        ctx.quadraticCurveTo(x-50, y-50, x, y);
+                    }
+                    ctx.stroke();
+                }
+            },
+
+            drawPavers: function(ctx, w, h, p) {
+                ctx.fillStyle = '#9e9e9e'; // Grout
+                ctx.fillRect(0, 0, w, h);
+                const size = 128; // Large format
+                const gap = 8;
+                for(let x=0; x<w; x+=size) {
+                    for(let y=0; y<h; y+=size*2) { // Running bond or just rectangular
+                        ctx.fillStyle = p.color;
+                        ctx.globalAlpha = 1;
+                         // Slight color variation
+                        if(Math.random() > 0.5) ctx.fillStyle = p.highlight;
+                        
+                        ctx.fillRect(x+gap, y+gap, size-gap*2, size*2-gap*2);
+                        
+                        // Noise on tile
+                        ctx.fillStyle = '#000';
+                        ctx.globalAlpha = 0.05;
+                        ctx.fillRect(x+gap + Math.random()*50, y+gap + Math.random()*50, 20, 20);
+                    }
+                }
+            },
+
+            drawWater: function(ctx, w, h, p) {
+                 ctx.fillStyle = p.color;
+                 ctx.fillRect(0,0,w,h);
+                 // Caustics
+                 ctx.strokeStyle = p.highlight;
+                 ctx.lineWidth = 5;
+                 ctx.globalAlpha = 0.4;
+                 for(let i=0; i<50; i++) {
+                     let x = Math.random()*w;
+                     let y = Math.random()*h;
+                     let r = 20 + Math.random()*50;
+                     ctx.beginPath();
+                     ctx.arc(x, y, r, 0, Math.PI*2);
+                     ctx.stroke();
+                 }
+            },
+
+            drawGrass: function(ctx, w, h, p) {
+               ctx.fillStyle = p.color;
+               ctx.fillRect(0,0,w,h);
+               ctx.fillStyle = p.highlight;
+               ctx.globalAlpha = 0.1;
+               for(let i=0; i<50000; i++) {
+                   ctx.fillRect(Math.random()*w, Math.random()*h, 4, 4);
+               }
+            },
+
+            drawSky: function(ctx, w, h, p) {
+                const grad = ctx.createLinearGradient(0, 0, 0, h);
+                grad.addColorStop(0, '#1a237e'); // Deep Twilight Blue
+                grad.addColorStop(0.4, '#b39ddb'); // Purple/Lavender
+                grad.addColorStop(0.7, '#ffcc80'); // Orange Sunset
+                grad.addColorStop(1, '#ffab91'); // Warm horizon
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, w, h);
+            },
+            
+            drawFabric: function(ctx, w, h, p) {
+                ctx.fillStyle = p.color;
+                ctx.fillRect(0,0,w,h);
+                // Weave
+                ctx.fillStyle = '#bdbdbd';
+                ctx.globalAlpha = 0.1;
+                 for(let i=0; i<w; i+=4) {
+                     ctx.fillRect(i, 0, 1, h);
+                     ctx.fillRect(0, i, w, 1);
+                 }
+            },
+
+            drawPoolTiles: function(ctx, w, h, p) {
+                ctx.fillStyle = '#006064'; // Grout (Dark Teal)
+                ctx.fillRect(0,0,w,h);
+                const size = 32; 
+                const gap = 2;
+                for(let x=0; x<w; x+=size) {
+                    for(let y=0; y<h; y+=size) {
+                        ctx.fillStyle = p.color;
+                        ctx.globalAlpha = 0.8 + Math.random()*0.2;
+                        if(Math.random() > 0.8) ctx.fillStyle = p.highlight;
+                        ctx.fillRect(x+gap, y+gap, size-gap*2, size-gap*2);
+                    }
+                }
+            },
+
+            drawCaustics: function(ctx, w, h, p) {
+                ctx.fillStyle = '#000'; // Black background for additive blending
+                ctx.fillRect(0,0,w,h);
+                ctx.strokeStyle = p.color;
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 0.5;
+                // Voronoi-ish cellular pattern approximation
+                for(let i=0; i<100; i++) {
+                    let x = Math.random()*w;
+                    let y = Math.random()*h;
+                    let r = 30 + Math.random()*100;
+                    ctx.beginPath();
+                    ctx.arc(x, y, r, 0, Math.PI*2);
+                    ctx.stroke();
+                }
+                // Blur effect
+                ctx.globalAlpha = 1;
+                ctx.filter = 'blur(10px)';
+                ctx.drawImage(ctx.canvas, 0, 0);
+            }
+        });
+
+        // --- WATER ANIMATION & SHADER ---
+        AFRAME.registerComponent('water-displacement', {
+            schema: {
+                speed: {type: 'number', default: 0.001},
+                amplitude: {type: 'number', default: 0.05}
+            },
+            init: function () {
+                this.time = 0;
+                // We'll use a standard mesh but animate vertex positions for displacement effect
+                const mesh = this.el.getObject3D('mesh');
+                if (mesh) {
+                    mesh.geometry = new THREE.PlaneGeometry(8, 6, 32, 32);
+                }
+            },
+            tick: function (time, timeDelta) {
+                const mesh = this.el.getObject3D('mesh');
+                if (!mesh) return;
+                
+                this.time += timeDelta * this.data.speed;
+                const pos = mesh.geometry.attributes.position;
+                
+                for (let i = 0; i < pos.count; i++) {
+                    const x = pos.getX(i);
+                    const y = pos.getY(i);
+                    // Multi-layered sine waves for organic motion
+                    const z = (Math.sin(x * 1.5 + this.time) * Math.cos(y * 1.5 + this.time) * this.data.amplitude) +
+                              (Math.sin(x * 3.0 - this.time * 0.5) * 0.3 * this.data.amplitude) +
+                              (Math.cos(y * 4.0 + this.time * 0.8) * 0.2 * this.data.amplitude);
+                    pos.setZ(i, z);
+                }
+                pos.needsUpdate = true;
+
+                // Also scroll texture more aggressively for "in motion" look
+                if (mesh.material.map) {
+                    mesh.material.map.offset.y += 0.0002 * timeDelta;
+                    mesh.material.map.offset.x += 0.0001 * timeDelta;
+                }
+            }
+        });
+
+        // --- CAUSTIC MOTION ---
+        AFRAME.registerComponent('caustic-motion', {
+            tick: function (time, timeDelta) {
+                const mesh = this.el.getObject3D('mesh');
+                if (!mesh || !mesh.material.map) return;
+                mesh.material.map.offset.y -= 0.0001 * timeDelta;
+                mesh.material.map.offset.x -= 0.00008 * timeDelta;
+            }
+        });
+        
+        // --- SIMPLE COLLIDER / MOVEMENT RESTRICTION ---
+        // Keeps player within bounds (simple implementation: stick to generic floor height and limit X/Z)
+        AFRAME.registerComponent('simple-nav', {
+            init: function() {
+                this.camera = this.el.querySelector('[camera]');
+            },
+            tick: function() {
+                if (!this.camera) return;
+                
+                const camPos = this.camera.getAttribute('position');
+                const rigPos = this.el.getAttribute('position');
+                
+                // Transfer horizontal movement from camera (wasd) to rig
+                if (Math.abs(camPos.x) > 0.001 || Math.abs(camPos.z) > 0.001) {
+                    rigPos.x += camPos.x;
+                    rigPos.z += camPos.z;
+                    this.el.setAttribute('position', rigPos);
+                    
+                    // Reset camera to center of rig
+                    this.camera.setAttribute('position', {x: 0, y: 0, z: 0});
+                }
+
+                // Simple floor clamping & height maintenance
+                if (rigPos.y < 1.6) {
+                    rigPos.y = 1.6;
+                    this.el.setAttribute('position', rigPos);
+                }
+            }
+        });
+
+        // --- MODEL COLOR TINT ---
+        AFRAME.registerComponent('model-color', {
+            schema: {type: 'color', default: '#fff'},
+            init: function() {
+                this.applyColor = this.applyColor.bind(this);
+                this.el.addEventListener('model-loaded', this.applyColor);
+            },
+            applyColor: function() {
+                const mesh = this.el.getObject3D('mesh');
+                if (!mesh) return;
+                const color = new THREE.Color(this.data);
+                mesh.traverse((node) => {
+                    if (node.isMesh) {
+                        // Clone material to avoid affecting other instances
+                        if (Array.isArray(node.material)) {
+                            node.material = node.material.map(m => {
+                                const newMat = m.clone();
+                                newMat.color.set(color);
+                                return newMat;
+                            });
+                        } else {
+                            node.material = node.material.clone();
+                            node.material.color.set(color);
+                        }
+                    }
+                });
+            }
+        });
+
+    </script>
+    
+    <!-- A-Frame Scene -->
+    <!-- physicallyCorrectLights: true for realistic light falloff -->
+    <!-- shadow="type: pcfsoft" for soft shadows -->
+    <a-scene 
+        renderer="antialias: true; colorManagement: true; physicallyCorrectLights: true; shadowMapEnabled: true"
+        shadow="type: pcfsoft"
+        background="color: #aaddff"
+        fog="type: exponential; density: 0.005; color: #aaddff"
+    >
+        
+        <a-assets timeout="10000">
+            <!-- Textures will be injected here by system -->
+            <img id="wall-design-texture" src="textures/Wall design.jpg">
+            <img id="pavement-texture" src="textures/Pavement.jpg">
+            <img id="pool-wall-tiles-texture" src="textures/Pool wall tiles.jpg">
+            <img id="villa-wall-texture" src="textures/Villa wall.jpg">
+            <img id="interior-wall-texture" src="textures/interior wall.jpg">
+            <a-asset-item id="car-1-model" src="textures/car_1.glb"></a-asset-item>
+            <a-asset-item id="car-2-model" src="textures/car_2.glb"></a-asset-item>
+            <a-asset-item id="sink-model" src="textures/sink_with_faucet.glb"></a-asset-item>
+            <a-asset-item id="toilet-model" src="textures/toilet_seat.glb"></a-asset-item>
+            <a-asset-item id="shower-model" src="textures/shower_high_poly.glb"></a-asset-item>
+            <a-asset-item id="pool-chair-model" src="textures/pool_lounge_chair.glb"></a-asset-item>
+            <a-asset-item id="ceiling-fan-model" src="textures/ceiling_fan.glb"></a-asset-item>
+            <img id="window-texture" src="textures/window.jpg">
+            <img id="wall-image-1" src="textures/wall_image_1.jpg">
+            <img id="wall-image-2" src="textures/wall_image_2.jpg">
+            <img id="wall-image-3" src="textures/wall_image_3.jpg">
+            <img id="wall-image-4" src="textures/wall_image_4.jpg">
+            <img id="wall-image-5" src="textures/wall_image_5.jpg">
+            <img id="wall-image-6" src="textures/wall_image_6.jpg">
+            <a-asset-item id="center-table-model" src="textures/center_table.glb"></a-asset-item>
+            <a-asset-item id="sofa-model" src="textures/Sofa _1.glb"></a-asset-item>
+            <a-asset-item id="tv-model" src="textures/tv.glb"></a-asset-item>
+            <a-asset-item id="kitchen-model" src="textures/kitchen.glb"></a-asset-item>
+            <a-asset-item id="fridge-model-1" src="textures/Fridge_1.glb"></a-asset-item>
+            <a-asset-item id="fridge-model-2" src="textures/Fridge_2.glb"></a-asset-item>
+            <a-asset-item id="dining-table-model" src="textures/dining_table.glb"></a-asset-item>
+            <a-asset-item id="speaker-model" src="textures/speaker.glb"></a-asset-item>
+            <a-asset-item id="potted-plant-1-model" src="textures/potted_plant_1.glb"></a-asset-item>
+            <a-asset-item id="bed-model" src="textures/Bed.glb"></a-asset-item>
+            <a-asset-item id="lamp-model" src="textures/Lamp.glb"></a-asset-item>
+            
+             <a-mixin id="wall" geometry="primitive: box; depth: 0.2" material="src: #interior-wall-texture; repeat: 1 1; roughness: 0.8"></a-mixin>
+             <a-mixin id="floor" geometry="primitive: plane" material="src: #wood-floor; repeat: 4 4; roughness: 0.6; metalness: 0.1" rotation="-90 0 0" shadow="receive: true"></a-mixin>
+             <!-- Modernized Window Mixins -->
+             <a-mixin id="window-glass" geometry="primitive: box; depth: 0.02" material="src: #window-texture; roughness: 0.1; metalness: 0.1; side: double"></a-mixin>
+             <a-mixin id="wall-frame-backing" geometry="primitive: box; depth: 0.05" material="color: #2c3e50; metalness: 0.8; roughness: 0.2"></a-mixin>
+             <a-mixin id="light-warm" light="type: point; color: #ffeb3b; intensity: 3; distance: 10; castShadow: true; shadowBias: -0.001"></a-mixin>
+        </a-assets>
+
+        <!-- --- ENVIRONMENT --- -->
+        <!-- Sky -->
+        <a-sky src="#sky"></a-sky>
+        
+        <!-- Ground (Grass) -->
+        <a-plane 
+            src="#grass" 
+            rotation="-90 0 0" 
+            width="200" height="200" 
+            repeat="50 50"
+            color="#999"
+            shadow="receive: true"
+        ></a-plane>
+        
+        <!-- (Removed extra overlapping hardscape plane to prevent ground flicker near front potted plants) -->
+        
+        <!-- Perimeter Fence (Using Wall design.jpg) -->
+        <a-box width="42" height="1.5" depth="0.2" position="-1 0.75 -20" material="src: #wall-design-texture; repeat: 10 1" shadow="cast: true"></a-box> <!-- North -->
+        <a-box width="42" height="1.5" depth="0.2" position="0 0.75 20" log="visible: false" visible="false"></a-box> <!-- Hide original South -->
+        <a-box width="20" height="1.5" depth="0.2" position="-12 0.75 20" material="src: #wall-design-texture; repeat: 5 1" shadow="cast: true"></a-box> <!-- South Left -->
+        <a-box width="18" height="1.5" depth="0.2" position="11 0.75 20" material="src: #wall-design-texture; repeat: 4.5 1" shadow="cast: true"></a-box> <!-- South Right -->
+        
+        <!-- MAIN ENTRANCE GATE (Open - Raised and Offset to avoid wall interference) -->
+        <a-entity id="main-gate" position="0 0.08 20.15">
+            <!-- Pillars -->
+            <a-box width="0.4" height="2" depth="0.4" position="-2.2 1 0" material="color: #2c3e50" shadow="cast: true"></a-box>
+            <a-box width="0.4" height="2" depth="0.4" position="2.2 1 0" material="color: #2c3e50" shadow="cast: true"></a-box>
+            <!-- Gate Leaves (Rotated 90 degrees for 'Open' state) -->
+            <a-entity position="-2 0 0" rotation="0 90 0">
+                <a-box width="2" height="1.8" depth="0.05" position="1 0.9 0" material="color: #212121; metalness: 0.8; roughness: 0.2" shadow="cast: true">
+                    <a-box width="2" height="0.1" depth="0.06" position="0 0.5 0" color="#333"></a-box>
+                    <a-box width="2" height="0.1" depth="0.06" position="0 -0.5 0" color="#333"></a-box>
+                </a-box>
+            </a-entity>
+            <a-entity position="2 0 0" rotation="0 -90 0">
+                <a-box width="2" height="1.8" depth="0.05" position="-1 0.9 0" material="color: #212121; metalness: 0.8; roughness: 0.2" shadow="cast: true">
+                    <a-box width="2" height="0.1" depth="0.06" position="0 0.5 0" color="#333"></a-box>
+                    <a-box width="2" height="0.1" depth="0.06" position="0 -0.5 0" color="#333"></a-box>
+                </a-box>
+            </a-entity>
+        </a-entity>
+        <a-box width="0.2" height="1.5" depth="40" position="-22 0.75 0" material="src: #wall-design-texture; repeat: 10 1" shadow="cast: true"></a-box> <!-- West -->
+        <a-box width="0.2" height="1.5" depth="40" position="20 0.75 0" material="src: #wall-design-texture; repeat: 10 1" shadow="cast: true"></a-box> <!-- East -->
+
+        <!-- --- VILLA CONTAINER --- -->
+        <a-entity id="villa" position="0 0.1 -10">
+
+            <!-- == STRUCTURE == -->
+            
+            <!-- FLOORS -->
+            <a-plane mixin="floor" width="8" height="8" position="0 0 0" material="src: #marble; repeat: 2 2; color: #fff; roughness: 0.1; metalness: 0.1" shadow="receive: true"></a-plane> <!-- Living (Marble Upgrade) -->
+            <a-plane mixin="floor" width="8" height="8" position="-8 0 0" shadow="receive: true"></a-plane> <!-- Bedroom (Expanded) -->
+            <a-plane width="5" height="8" position="6.5 0 0" rotation="-90 0 0" material="src: #tiles; repeat: 4 6; roughness: 0.3" shadow="receive: true"></a-plane> <!-- Kitchen -->
+            
+            <!-- CEILING (Internal) -->
+            <!-- Living room ceiling pulled slightly back from the front wall to avoid popping/flicker at the facade -->
+            <a-plane width="8" height="7.6" position="0 3 -0.2" rotation="90 0 0" material="color: #eee; roughness: 1" shadow="cast: false"></a-plane>
+            <a-plane width="8" height="8" position="-8 3 0" rotation="90 0 0" material="color: #eee; roughness: 1" shadow="cast: false"></a-plane>
+            <a-plane width="5" height="8" position="6.5 3 0" rotation="90 0 0" material="color: #eee; roughness: 1" shadow="cast: false"></a-plane>
+
+            <!-- ROOF (External - Modern Flat Roofs) -->
+            <!-- Central living area flat roof (slight overhang, lifted above ceiling to avoid z-fighting) -->
+            <a-box width="9" height="0.2" depth="9" position="0 3.3 0" material="src: #concrete-dark; color: #424242; roughness: 0.9; metalness: 0.05" shadow="cast: true"></a-box>
+            <!-- Bedroom flat roof (slight overhang, lifted above ceiling to avoid z-fighting) -->
+            <a-box width="9" height="0.2" depth="9" position="-8 3.3 0" material="src: #concrete-dark; color: #424242; roughness: 0.9; metalness: 0.05" shadow="cast: true"></a-box>
+            <!-- Kitchen flat roof (slight overhang, lifted above ceiling to avoid z-fighting) -->
+            <a-box width="6" height="0.2" depth="9" position="6.5 3.3 0" material="src: #concrete-dark; color: #424242; roughness: 0.9; metalness: 0.05" shadow="cast: true"></a-box>
+
+            <!-- WALLS -->
+            
+            <!-- Living Room Walls -->
+            <!-- Living Room Back Wall Segments (EXTERIOR - Villa Wall Texture) -->
+            <a-box width="2" height="3" position="-3 1.5 -4" depth="0.2" material="src: #villa-wall-texture; repeat: 1 1.5; roughness: 0.8" shadow="cast: true"></a-box> <!-- Left -->
+            <a-box width="2" height="3" position="3 1.5 -4" depth="0.2" material="src: #villa-wall-texture; repeat: 1 1.5; roughness: 0.8" shadow="cast: true"></a-box> <!-- Right -->
+            <a-box width="4" height="0.5" position="0 0.25 -4" depth="0.2" material="src: #villa-wall-texture; repeat: 2 0.25; roughness: 0.8" shadow="cast: true"></a-box> <!-- Bottom -->
+            <a-box width="4" height="0.5" position="0 2.75 -4" depth="0.2" material="src: #villa-wall-texture; repeat: 2 0.25; roughness: 0.8" shadow="cast: true"></a-box> <!-- Top -->
+            <!-- Living Room Back Wall Interior Lining -->
+            <a-plane width="2" height="3" position="-3 1.5 -3.89" material="src: #interior-wall-texture; repeat: 1 1.5; roughness: 0.8"></a-plane>
+            <a-plane width="2" height="3" position="3 1.5 -3.89" material="src: #interior-wall-texture; repeat: 1 1.5; roughness: 0.8"></a-plane>
+            <a-plane width="4" height="0.5" position="0 0.25 -3.89" material="src: #interior-wall-texture; repeat: 2 0.25; roughness: 0.8"></a-plane>
+            <a-plane width="4" height="0.5" position="0 2.75 -3.89" material="src: #interior-wall-texture; repeat: 2 0.25; roughness: 0.8"></a-plane>
+            <!-- Large Back Window (Using Image Texture) -->
+            <a-box mixin="window-glass" width="4" height="2" position="0 1.5 -4"></a-box>
+            <!-- Living Room Front (Pool-Facing) Segments (EXTERIOR - Villa Wall Texture) -->
+            <!-- Left Front -->
+            <a-box width="0.75" height="3" position="-3.625 1.5 4" depth="0.2" material="src: #villa-wall-texture; repeat: 0.375 1.5; roughness: 0.8" shadow="cast: true"></a-box>
+            <a-box width="0.75" height="3" position="-1.375 1.5 4" depth="0.2" material="src: #villa-wall-texture; repeat: 0.375 1.5; roughness: 0.8" shadow="cast: true"></a-box>
+            <a-box width="1.5" height="0.5" position="-2.5 0.25 4" depth="0.2" material="src: #villa-wall-texture; repeat: 0.75 0.25; roughness: 0.8" shadow="cast: true"></a-box>
+            <a-box width="1.5" height="0.5" position="-2.5 2.75 4" depth="0.2" material="src: #villa-wall-texture; repeat: 0.75 0.25; roughness: 0.8" shadow="cast: true"></a-box>
+            <!-- Living Room Front Left Interior Lining -->
+            <a-plane width="0.75" height="3" position="-3.625 1.5 3.89" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 0.375 1.5; roughness: 0.8"></a-plane>
+            <a-plane width="0.75" height="3" position="-1.375 1.5 3.89" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 0.375 1.5; roughness: 0.8"></a-plane>
+            <a-plane width="1.5" height="0.5" position="-2.5 0.25 3.89" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 0.75 0.25; roughness: 0.8"></a-plane>
+            <a-plane width="1.5" height="0.5" position="-2.5 2.75 3.89" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 0.75 0.25; roughness: 0.8"></a-plane>
+
+            <!-- Living Room Front Left Window (Using Image Texture) -->
+            <a-box mixin="window-glass" width="1.5" height="2" position="-2.5 1.5 4"></a-box>
+
+            <!-- Right Front Section (Living Room + Kitchen Facade Realignment) (EXTERIOR - Villa Wall Texture) -->
+            <!-- Living Room Segment (X=1 to 4) -->
+            <!-- Flanking Walls -->
+            <a-box width="0.5" height="3" position="1.25 1.5 4" depth="0.2" material="src: #villa-wall-texture; repeat: 0.25 1.5; roughness: 0.8" shadow="cast: true"></a-box> <!-- Left -->
+            <a-box width="0.5" height="3" position="3.75 1.5 4" depth="0.2" material="src: #villa-wall-texture; repeat: 0.25 1.5; roughness: 0.8" shadow="cast: true"></a-box> <!-- Right -->
+            <!-- Window Lintel/Sill -->
+            <a-box width="2.0" height="0.5" position="2.5 0.25 4" depth="0.2" material="src: #villa-wall-texture; repeat: 1 0.25; roughness: 0.8" shadow="cast: true"></a-box> <!-- Bottom -->
+            <a-box width="2.0" height="0.5" position="2.5 2.75 4" depth="0.2" material="src: #villa-wall-texture; repeat: 1 0.25; roughness: 0.8" shadow="cast: true"></a-box> <!-- Top -->
+            <!-- Living Room Front Right Interior Lining -->
+            <a-plane width="0.5" height="3" position="1.25 1.5 3.89" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 0.25 1.5; roughness: 0.8"></a-plane>
+            <a-plane width="0.5" height="3" position="3.75 1.5 3.89" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 0.25 1.5; roughness: 0.8"></a-plane>
+            <a-plane width="2.0" height="0.5" position="2.5 0.25 3.89" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 1 0.25; roughness: 0.8"></a-plane>
+            <a-plane width="2.0" height="0.5" position="2.5 2.75 3.89" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 1 0.25; roughness: 0.8"></a-plane>
+            
+            <!-- Living Room Entrance Window (Centered at X=2.5) -->
+
+            <!-- Living Room Entrance Window (Using Image Texture) -->
+            <a-box mixin="window-glass" width="2" height="2" position="2.5 1.5 4"></a-box>
+
+            <!-- Kitchen Segment (X=4 to 9) (EXTERIOR - Villa Wall Texture) -->
+            <!-- Flanking Walls -->
+            <a-box width="1.25" height="3" position="4.625 1.5 4" depth="0.2" material="src: #villa-wall-texture; repeat: 0.625 1.5; roughness: 0.8" shadow="cast: true"></a-box> <!-- Left -->
+            <a-box width="1.25" height="3" position="8.375 1.5 4" depth="0.2" material="src: #villa-wall-texture; repeat: 0.625 1.5; roughness: 0.8" shadow="cast: true"></a-box> <!-- Right -->
+            <!-- Window Lintel/Sill -->
+            <a-box width="2.5" height="0.5" position="6.5 0.25 4" depth="0.2" material="src: #villa-wall-texture; repeat: 1.25 0.25; roughness: 0.8" shadow="cast: true"></a-box> <!-- Bottom -->
+            <a-box width="2.5" height="0.5" position="6.5 2.75 4" depth="0.2" material="src: #villa-wall-texture; repeat: 1.25 0.25; roughness: 0.8" shadow="cast: true"></a-box> <!-- Top -->
+            <!-- Kitchen Front Interior Lining -->
+            <a-plane width="1.25" height="3" position="4.625 1.5 3.89" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 0.625 1.5; roughness: 0.8"></a-plane> 
+            <a-plane width="1.25" height="3" position="8.375 1.5 3.89" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 0.625 1.5; roughness: 0.8"></a-plane>
+            <a-plane width="2.5" height="0.5" position="6.5 0.25 3.89" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 1.25 0.25; roughness: 0.8"></a-plane>
+            <a-plane width="2.5" height="0.5" position="6.5 2.75 3.89" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 1.25 0.25; roughness: 0.8"></a-plane>
+            
+            <!-- Kitchen Front Window (Centered at X=6.5) -->
+
+            <!-- Kitchen Front Window (Using Image Texture) -->
+            <a-box mixin="window-glass" width="2.5" height="2" position="6.5 1.5 4"></a-box>
+
+            <a-box width="2" height="0.5" position="0 2.75 4" depth="0.2" material="src: #villa-wall-texture; repeat: 1 0.25; roughness: 0.8" shadow="cast: true"></a-box> <!-- Main Door Header (EXTERIOR - Villa Wall Texture) -->
+            <!-- Main Door Header Interior Lining -->
+            <a-plane width="2" height="0.5" position="0 2.75 3.89" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 1 0.25; roughness: 0.8"></a-plane>
+            
+            <!-- Main Door (Animated) -->
+            <a-entity position="-1 0 4" rotation="0 25 0">
+                <a-box id="main-door" width="2" height="2.5" depth="0.1" position="1 1.25 0" color="#4e342e" shadow="cast: true" class="clickable">
+                     <!-- Door handles centered vertically, slightly to the right -->
+                     <a-sphere radius="0.05" position="0.7 0 0.08" color="#ffd700"></a-sphere>
+                     <a-sphere radius="0.05" position="0.7 0 -0.08" color="#ffd700"></a-sphere>
+                </a-box>
+                 <a-animation attribute="rotation" begin="click" to="0 90 0" dur="1000"></a-animation>
+                 <a-animation attribute="rotation" begin="mouseleave" delay="3000" to="0 25 0" dur="1000"></a-animation>
+            </a-entity>
+            
+            <!-- Bedroom Segment -->
+            <a-box mixin="wall" width="0.2" height="3" depth="3.5" position="-4 1.5 -2.25" shadow="cast: true"></a-box> 
+            <a-box mixin="wall" width="0.2" height="3" depth="3.5" position="-4 1.5 2.25" shadow="cast: true"></a-box>
+            <a-box mixin="wall" width="0.2" height="0.5" depth="1" position="-4 2.75 0"></a-box> <!-- Bedroom Door Header (Textured) -->
+            
+            <!-- Bedroom Door (Animated) -->
+            <a-entity position="-4 0 0.5" rotation="0 20 0">
+                <a-box id="bedroom-door" width="0.1" height="2.5" depth="1" position="0 1.25 -0.5" color="#8d6e63" shadow="cast: true" class="clickable">
+                     <a-sphere radius="0.04" position="0.06 0 -0.4" color="#ffd700"></a-sphere>
+                     <a-sphere radius="0.04" position="-0.06 0 -0.4" color="#ffd700"></a-sphere>
+                </a-box>
+                 <a-animation attribute="rotation" begin="click" to="0 90 0" dur="1000"></a-animation>
+                 <a-animation attribute="rotation" begin="mouseleave" delay="3000" to="0 20 0" dur="1000"></a-animation>
+            </a-entity>
+
+            <!-- Bedroom Back Wall Segments (EXTERIOR - Villa Wall Texture) -->
+            <a-box width="2.5" height="3" position="-8.75 1.5 -4" depth="0.2" material="src: #villa-wall-texture; repeat: 1.25 1.5; roughness: 0.8" shadow="cast: true"></a-box> <!-- Washroom North Wall -->
+            <a-box width="0.75" height="3" position="-7.125 1.5 -4" depth="0.2" material="src: #villa-wall-texture; repeat: 0.375 1.5; roughness: 0.8" shadow="cast: true"></a-box> <!-- Bed Area North Left -->
+            <a-box width="0.75" height="3" position="-4.375 1.5 -4" depth="0.2" material="src: #villa-wall-texture; repeat: 0.375 1.5; roughness: 0.8" shadow="cast: true"></a-box> <!-- Bed Area North Right -->
+            <a-box width="2.0" height="0.5" position="-5.75 0.25 -4" depth="0.2" material="src: #villa-wall-texture; repeat: 1 0.25; roughness: 0.8" shadow="cast: true"></a-box> <!-- Bed Window Bottom -->
+            <a-box width="2.0" height="0.5" position="-5.75 2.75 -4" depth="0.2" material="src: #villa-wall-texture; repeat: 1 0.25; roughness: 0.8" shadow="cast: true"></a-box> <!-- Bed Window Top -->
+            <!-- Bedroom Back Wall Interior Lining (Washroom Section North) -->
+            <a-plane width="2.5" height="3" position="-8.75 1.5 -3.89" material="src: #pool-wall-tiles-texture; repeat: 2.5 1.5; roughness: 0.8"></a-plane>
+            <a-plane width="0.75" height="3" position="-7.125 1.5 -3.89" material="src: #interior-wall-texture; repeat: 0.375 1.5; roughness: 0.8"></a-plane>
+            <a-plane width="0.75" height="3" position="-4.375 1.5 -3.89" material="src: #interior-wall-texture; repeat: 0.375 1.5; roughness: 0.8"></a-plane>
+            <a-plane width="2.0" height="0.5" position="-5.75 0.25 -3.89" material="src: #interior-wall-texture; repeat: 1 0.25; roughness: 0.8"></a-plane>
+            <a-plane width="2.0" height="0.5" position="-5.75 2.75 -3.89" material="src: #interior-wall-texture; repeat: 1 0.25; roughness: 0.8"></a-plane>
+            
+            <!-- Bedroom Back Window (Relocated to behind Bed) -->
+
+            <!-- Bedroom Back Window (Using Image Texture) -->
+            <a-box mixin="window-glass" width="2" height="2" position="-5.75 1.5 -4"></a-box>
+
+            <!-- Bedroom West Wall Segments (EXTERIOR - Villa Wall Texture) -->
+            <a-box width="0.2" height="3" depth="3" position="-10 1.5 -2.5" material="src: #villa-wall-texture; repeat: 1.5 1.5; roughness: 0.8" shadow="cast: true"></a-box> <!-- Washroom West Wall -->
+            <a-box width="0.2" height="3" depth="0.5" position="-10 1.5 -0.75" material="src: #villa-wall-texture; repeat: 0.25 1.5; roughness: 0.8" shadow="cast: true"></a-box> <!-- Bedroom West Transition -->
+            <a-box width="0.2" height="3" depth="0.5" position="-10 1.5 1.75" material="src: #villa-wall-texture; repeat: 0.25 1.5; roughness: 0.8" shadow="cast: true"></a-box> <!-- Bedroom West Corner -->
+            <a-box width="0.2" height="0.5" depth="2" position="-10 0.25 0.5" material="src: #villa-wall-texture; repeat: 1 0.25; roughness: 0.8" shadow="cast: true"></a-box> <!-- Bedroom Side Window Bottom -->
+            <a-box width="0.2" height="0.5" depth="2" position="-10 2.75 0.5" material="src: #villa-wall-texture; repeat: 1 0.25; roughness: 0.8" shadow="cast: true"></a-box> <!-- Bedroom Side Window Top -->
+            <!-- Bedroom West Wall Interior Lining (Washroom Section West) -->
+            <a-plane width="3" height="3" position="-9.89 1.5 -2.5" rotation="0 90 0" material="src: #pool-wall-tiles-texture; repeat: 1.5 1.5; roughness: 0.8"></a-plane>
+            <a-plane width="0.5" height="3" position="-9.89 1.5 -0.75" rotation="0 90 0" material="src: #interior-wall-texture; repeat: 0.25 1.5; roughness: 0.8"></a-plane>
+            <a-plane width="0.5" height="3" position="-9.89 1.5 1.75" rotation="0 90 0" material="src: #interior-wall-texture; repeat: 0.25 1.5; roughness: 0.8"></a-plane>
+            <a-plane width="2" height="0.5" position="-9.89 0.25 0.5" rotation="0 90 0" material="src: #interior-wall-texture; repeat: 1 0.25; roughness: 0.8"></a-plane>
+            <a-plane width="2" height="0.5" position="-9.89 2.75 0.5" rotation="0 90 0" material="src: #interior-wall-texture; repeat: 1 0.25; roughness: 0.8"></a-plane>
+
+
+            <!-- Bedroom Side Window (Using Image Texture) -->
+            <a-box mixin="window-glass" width="2" height="2" position="-10 1.5 0.5" rotation="0 90 0"></a-box>
+
+            <!-- MODERN WASHROOM SHELL (Optimized Original) -->
+            <!-- Outer Shell -->
+            <a-box mixin="wall" width="0.2" height="3" depth="3" position="-7.5 1.5 -2.5" shadow="cast: true"></a-box> <!-- East Wall -->
+            <!-- East Wall Interior Lining -->
+            <a-plane width="3" height="3" position="-7.61 1.5 -2.5" rotation="0 -90 0" material="src: #pool-wall-tiles-texture; repeat: 1.5 1.5; roughness: 0.8"></a-plane>
+            
+            <!-- South Wall Interior Lining -->
+            <a-box mixin="wall" width="1.0" height="3" depth="0.2" position="-9.5 1.5 -1" shadow="cast: true"></a-box> <!-- South West -->
+            <a-plane width="1.0" height="3" position="-9.5 1.5 -1.11" rotation="0 180 0" material="src: #pool-wall-tiles-texture; repeat: 0.5 1.5; roughness: 0.8"></a-plane>
+            
+            <a-box mixin="wall" width="1.0" height="0.5" depth="0.2" position="-8.5 2.75 -1" shadow="cast: true"></a-box> <!-- Door Header -->
+            <a-plane width="1.0" height="0.5" position="-8.5 2.75 -1.11" rotation="0 180 0" material="src: #pool-wall-tiles-texture; repeat: 0.5 0.25; roughness: 0.8"></a-plane>
+            
+            <a-box mixin="wall" width="0.5" height="3" depth="0.2" position="-7.75 1.5 -1" shadow="cast: true"></a-box> <!-- South East -->
+            <a-plane width="0.5" height="3" position="-7.75 1.5 -1.11" rotation="0 180 0" material="src: #pool-wall-tiles-texture; repeat: 0.25 1.5; roughness: 0.8"></a-plane>
+
+            <!-- UNIFIED DOOR: Interactive Entrance (Centered) -->
+            <a-entity position="-9 0 -1" rotation="0 10 0">
+                <a-box id="washroom-door" width="1" height="2.5" depth="0.1" position="0.5 1.25 0" color="#8d6e63" shadow="cast: true" class="clickable">
+                     <a-sphere radius="0.04" position="0.4 0 0.06" color="#ffd700"></a-sphere>
+                     <a-sphere radius="0.04" position="0.4 0 -0.06" color="#ffd700"></a-sphere>
+                </a-box>
+                 <a-animation attribute="rotation" begin="click" to="0 90 0" dur="1000"></a-animation>
+                 <a-animation attribute="rotation" begin="mouseleave" delay="3000" to="0 10 0" dur="1000"></a-animation>
+            </a-entity>
+
+            <!-- --- WASHROOM INTERIORS (Professional GLB Layout) --- -->
+            <!-- Floor -->
+            <a-plane width="2.5" height="3" position="-8.75 0.02 -2.5" rotation="-90 0 0" material="src: #pool-tiles; repeat: 4 5; roughness: 0.2" shadow="receive: true"></a-plane>
+            
+            <!-- Lighting (Centered for Balanced Ambience) -->
+            <a-entity position="-8.75 2.8 -2.5">
+                 <a-cylinder height="0.05" radius="0.2" color="#fff" material="emissive: #fff; emissiveIntensity: 1"></a-cylinder>
+                 <a-entity light="type: point; intensity: 1.2; distance: 6; color: #fff; castShadow: true"></a-entity>
+            </a-entity>
+            
+            <!-- Professional Sink (East Wall - Shifted South for Isolation) -->
+            <a-entity position="-7.85 0 -1.6" rotation="0 -90 0">
+                <!-- GLB Sink & Faucet (Directly on Floor) -->
+                <a-entity gltf-model="#sink-model" scale="0.8 0.8 0.8" position="0 0 0"></a-entity>
+                <!-- Mirror with Rim Light -->
+                <a-box width="0.9" height="1.2" depth="0.02" position="0 1.5 -0.15" material="color: #fff; metalness: 0.9; roughness: 0.05"></a-box>
+                <a-entity position="0 1.5 -0.16" light="type: point; intensity: 0.3; distance: 2; color: #fff"></a-entity>
+            </a-entity>
+            
+            <!-- Professional Toilet (West Wall - Shifted South for Isolation) -->
+            <a-entity position="-9.55 0 -1.6" rotation="0 90 0">
+                 <a-entity gltf-model="#toilet-model" scale="1 1 1" position="0 0 0.2"></a-entity>
+            </a-entity>
+            
+            <!-- Professional Shower (Corner Layout - North-East Corner) -->
+            <a-entity position="-7.6 0 -3.25">
+                <!-- L-Shaped Glass Enclosure -->
+                <a-box width="1.5" height="2.5" depth="0.02" position="-1.1 1.25 0" rotation="0 90 0" material="color: #f0faff; opacity: 0.1; transparent: true; side: double"></a-box> <!-- Side Wall -->
+                <a-box width="1.2" height="2.5" depth="0.02" position="-0.5 1.25 0.75" rotation="0 0 0" material="color: #f0faff; opacity: 0.1; transparent: true; side: double"></a-box> <!-- Front Wall -->
+                
+                <!-- GLB Shower Fixture (Mounted on East Wall, Facing West) -->
+                <a-entity gltf-model="#shower-model" scale="1.8 1.8 1.8" position="0.05 0 0" rotation="0 -90 0"></a-entity>
+            </a-entity>
+            <!-- Bedroom Front (Garden-Facing) Segments (EXTERIOR - Villa Wall Texture) -->
+            <a-box width="2" height="3" position="-9 1.5 2" depth="0.2" material="src: #villa-wall-texture; repeat: 1 1.5; roughness: 0.8" shadow="cast: true"></a-box>
+            <a-box width="2" height="3" position="-5 1.5 2" depth="0.2" material="src: #villa-wall-texture; repeat: 1 1.5; roughness: 0.8" shadow="cast: true"></a-box>
+            <a-box width="2" height="0.5" position="-7 0.25 2" depth="0.2" material="src: #villa-wall-texture; repeat: 1 0.25; roughness: 0.8" shadow="cast: true"></a-box>
+            <a-box width="2" height="0.5" position="-7 2.75 2" depth="0.2" material="src: #villa-wall-texture; repeat: 1 0.25; roughness: 0.8" shadow="cast: true"></a-box>
+            <!-- Bedroom Front Interior Lining -->
+            <a-plane width="2" height="3" position="-9 1.5 1.89" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 1 1.5; roughness: 0.8"></a-plane>
+            <a-plane width="2" height="3" position="-5 1.5 1.89" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 1 1.5; roughness: 0.8"></a-plane>
+            <a-plane width="2" height="0.5" position="-7 0.25 1.89" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 1 0.25; roughness: 0.8"></a-plane>
+            <a-plane width="2" height="0.5" position="-7 2.75 1.89" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 1 0.25; roughness: 0.8"></a-plane>
+            <!-- Bedroom Front Window -->
+            <!-- Bedroom Front Window (Using Image Texture) -->
+            <a-box mixin="window-glass" width="2" height="2" position="-7 1.5 2"></a-box>
+            <!-- Wall Art (Removed to clear space for TV) -->
+
+            <!-- Kitchen Segment -->
+            <a-box mixin="wall" width="0.2" height="3" depth="3.5" position="4 1.5 -2.25" shadow="cast: true"></a-box>
+            <a-box mixin="wall" width="0.2" height="3" depth="3.5" position="4 1.5 2.25" shadow="cast: true"></a-box>
+            <a-box mixin="wall" width="0.2" height="0.5" depth="1" position="4 2.75 0"></a-box> <!-- Kitchen Door Header (Textured) -->
+
+            <!-- Kitchen Door (Animated) -->
+            <a-entity position="4 0 -0.5" rotation="0 -20 0">
+                <a-box id="kitchen-door" width="0.1" height="2.5" depth="1" position="0 1.25 0.5" color="#8d6e63" shadow="cast: true" class="clickable">
+                     <a-sphere radius="0.04" position="-0.06 0 0.4" color="#ffd700"></a-sphere>
+                     <a-sphere radius="0.04" position="0.06 0 0.4" color="#ffd700"></a-sphere>
+                </a-box>
+                 <a-animation attribute="rotation" begin="click" to="0 -90 0" dur="1000"></a-animation>
+                 <a-animation attribute="rotation" begin="mouseleave" delay="3000" to="0 -20 0" dur="1000"></a-animation>
+            </a-entity>
+
+            <!-- Kitchen Back Wall (EXTERIOR - Villa Wall Texture) -->
+            <a-box width="5" height="3" position="6.5 1.5 -4" depth="0.2" material="src: #villa-wall-texture; repeat: 2.5 1.5; roughness: 0.8" shadow="cast: true"></a-box>
+            <!-- Kitchen Back Wall Interior Lining -->
+            <a-plane width="5" height="3" position="6.5 1.5 -3.89" material="src: #interior-wall-texture; repeat: 2.5 1.5; roughness: 0.8"></a-plane>
+
+            <!-- Kitchen Side Wall (EXTERIOR - Villa Wall Texture) -->
+            <a-box width="0.2" height="3" depth="8" position="9 1.5 0" material="src: #villa-wall-texture; repeat: 4 1.5; roughness: 0.8" shadow="cast: true"></a-box> <!-- Kitchen East Wall -->
+            <!-- Kitchen East Wall Interior Lining -->
+            <a-plane width="8" height="3" position="8.89 1.5 0" rotation="0 -90 0" material="src: #interior-wall-texture; repeat: 4 1.5; roughness: 0.8"></a-plane>
+
+            <!-- Kitchen Ceiling Light (Central) -->
+            <a-entity position="6.5 2.95 0">
+                 <a-cylinder height="0.1" radius="0.3" color="#fff" material="emissive: #fff; emissiveIntensity: 1"></a-cylinder>
+                 <a-entity mixin="light-warm"></a-entity>
+            </a-entity>
+             <!-- == FURNITURE == -->
+
+            <!-- LIVING ROOM -->
+            <!-- Level 3 Sofa (Left Side of L-Shape - Professional GLB - Scaled) -->
+            <a-entity position="-2.8 0 -1.4" rotation="0 90 0">
+                <a-entity gltf-model="#sofa-model" scale="0.6 0.6 0.6" shadow="cast: true"></a-entity>
+            </a-entity>
+
+
+
+            <!-- Level 3 Sofa (Back Wall - Professional GLB - Scaled) -->
+            <a-entity position="0 0 -3.2" rotation="0 0 0">
+                <a-entity gltf-model="#sofa-model" scale="0.6 0.6 0.6" shadow="cast: true"></a-entity>
+            </a-entity>
+            
+            <!-- TV Stand & TV (Relocated and Offset forward to fix wall flicker) -->
+            <a-entity position="3.55 0 -2" rotation="0 -90 0">
+                <a-box width="2.2" height="0.5" depth="0.5" color="#333" material="metalness: 0.5; roughness: 0.5" shadow="cast: true"></a-box>
+                <!-- 3D TV Model (Dropped to stand surface y=0.25 to clear wall art view) -->
+                <a-entity gltf-model="#tv-model" position="0 0.25 0" scale="1.2 1.2 1.2" shadow="cast: true"></a-entity>
+                 <!-- Sound System Speakers (Flanking TV - 3D Models) -->
+                 <a-entity gltf-model="#speaker-model" scale="1.5 1.5 1.5" position="-1.5 0 0" rotation="0 90 0" shadow="cast: true"></a-entity>
+                 <a-entity gltf-model="#speaker-model" scale="1.5 1.5 1.5" position="1.5 0 0" rotation="0 90 0" shadow="cast: true"></a-entity>
+            </a-entity>
+
+            <!-- Rug (Re-Centered) -->
+            <a-cylinder radius="1.5" height="0.01" position="0 0.01 -1.8" material="src: #fabric; color: #b71c1c; repeat: 4 4" shadow="receive: true"></a-cylinder>
+
+            <!-- Modern Refined Coffee Table (Final Color Scheme) -->
+            <!-- 3D Center Table Instance -->
+            <a-entity position="0 0 -1.8">
+                <a-entity gltf-model="#center-table-model" scale="0.07 0.07 0.07" shadow="cast: true"></a-entity>
+            </a-entity>
+            
+            <!-- Wall Frames with Edges -->
+            <!-- Living Room - Frame 1 (West Wall, Upper) -->
+            <a-entity position="-3.88 1.7 -1.5" rotation="0 90 0">
+                <a-box mixin="wall-frame-backing" width="0.7" height="0.9" position="0 0 0"></a-box>
+                <a-plane width="0.6" height="0.8" position="0 0 0.03" material="src: #wall-image-1; metalness: 0.2; roughness: 0.8"></a-plane>
+            </a-entity>
+            
+            <!-- Living Room - Frame 2 (West Wall, Lower) -->
+            <a-entity position="-3.88 1.7 1.5" rotation="0 90 0">
+                <a-box mixin="wall-frame-backing" width="0.7" height="0.9" position="0 0 0"></a-box>
+                <a-plane width="0.6" height="0.8" position="0 0 0.03" material="src: #wall-image-2; metalness: 0.2; roughness: 0.8"></a-plane>
+            </a-entity>
+
+            <!-- Additional Wall Frames (East Wall, Opposite West Frames) -->
+            <!-- Living Room - Frame 5 (East Wall, Upper) -->
+            <a-entity position="3.88 1.7 -1.5" rotation="0 -90 0">
+                <a-box mixin="wall-frame-backing" width="0.7" height="0.9" position="0 0 0"></a-box>
+                <a-plane width="0.6" height="0.8" position="0 0 0.03" material="src: #wall-image-5; metalness: 0.2; roughness: 0.8"></a-plane>
+            </a-entity>
+
+            <!-- Living Room - Frame 6 (East Wall, Lower) -->
+            <a-entity position="3.88 1.7 1.5" rotation="0 -90 0">
+                <a-box mixin="wall-frame-backing" width="0.7" height="0.9" position="0 0 0"></a-box>
+                <a-plane width="0.6" height="0.8" position="0 0 0.03" material="src: #wall-image-6; metalness: 0.2; roughness: 0.8"></a-plane>
+            </a-entity>
+
+            <!-- Ceiling Light & Fan -->
+            <!-- Living Room Ceiling Fan (Centered) -->
+            <a-entity position="0 3 0">
+                 <!-- 3D Fan Model - Scaled to fit room -->
+                 <a-entity id="living-room-fan-model" gltf-model="#ceiling-fan-model" scale="1 1 1" rotation="0 0 0" animation="property: rotation; to: 0 360 0; dur: 2000; easing: linear; loop: true"></a-entity>
+            </a-entity>
+
+            <!-- Living Room Lights (Flanking) -->
+            <a-entity position="0 2.95 -1.5">
+                 <a-cylinder height="0.1" radius="0.3" color="#fff" material="emissive: #fff; emissiveIntensity: 1"></a-cylinder>
+                 <a-entity mixin="light-warm"></a-entity>
+            </a-entity>
+            <a-entity position="0 2.95 1.5">
+                 <a-cylinder height="0.1" radius="0.3" color="#fff" material="emissive: #fff; emissiveIntensity: 1"></a-cylinder>
+                 <a-entity mixin="light-warm"></a-entity>
+            </a-entity>
+
+            <!-- Potted Plants (Front exterior - Grounded by dropping below villa foundation level) -->
+            <!-- Left of main door -->
+            <a-entity position="-3.5 -0.1 6.5">
+                 <a-entity gltf-model="#potted-plant-1-model" scale="1 1 1" shadow="cast: true"></a-entity>
+            </a-entity>
+            <!-- Right of main door -->
+            <a-entity position="3.5 -0.1 6.5">
+                 <a-entity gltf-model="#potted-plant-1-model" scale="1 1 1" shadow="cast: true"></a-entity>
+            </a-entity>
+
+
+            <!-- Bedroom Ceiling Fan (Centered over bed area) -->
+            <a-entity position="-5.75 3 -2">
+                 <!-- 3D Fan Model -->
+                 <a-entity id="bedroom-fan-model" gltf-model="#ceiling-fan-model" scale="1 1 1" rotation="0 0 0" animation="property: rotation; to: 0 360 0; dur: 2000; easing: linear; loop: true"></a-entity>
+            </a-entity>
+
+            <!-- Bedroom Lights (Front/Back Flanking to avoid Washroom) -->
+             <a-entity position="-5.75 2.95 -3.5"> <!-- Back Light (North) -->
+                 <a-cylinder height="0.1" radius="0.3" color="#fff" material="emissive: #fff; emissiveIntensity: 1"></a-cylinder>
+                 <a-entity mixin="light-warm"></a-entity>
+            </a-entity>
+             <a-entity position="-5.75 2.95 -0.5"> <!-- Front Light (South) -->
+                 <a-cylinder height="0.1" radius="0.3" color="#fff" material="emissive: #fff; emissiveIntensity: 1"></a-cylinder>
+                 <a-entity mixin="light-warm"></a-entity>
+            </a-entity>
+            <!-- TV UNIT (Left of Bed, Raised and mounted without wall embedding) -->
+            <a-entity position="-7.3 1.8 -2" rotation="0 90 0">
+                <!-- 3D TV Model (Mounted on stand, clear of wall) -->
+                <a-entity gltf-model="#tv-model" position="0.1 -0.55 0" scale="0.9 0.9 0.9" shadow="cast: true"></a-entity>
+                <a-box width="1.8" height="0.1" depth="0.3" position="0 -0.6 0" material="src: #wood-floor; color: #5d4037" shadow="cast: true"></a-box>
+            </a-entity>
+
+            <!-- Bedroom - Frame 1 (East Wall, Opposite TV) -->
+            <a-entity position="-4.11 1.7 -1.5" rotation="0 -90 0">
+                <a-box mixin="wall-frame-backing" width="0.7" height="0.9" position="0 0 0"></a-box>
+                <a-plane width="0.6" height="0.8" position="0 0 0.03" material="src: #wall-image-3; metalness: 0.2; roughness: 0.8"></a-plane>
+            </a-entity>
+            
+            <!-- Bedroom - Frame 2 (East Wall, Opposite TV) -->
+            <a-entity position="-4.11 1.7 -2.5" rotation="0 -90 0">
+                <a-box mixin="wall-frame-backing" width="0.7" height="0.9" position="0 0 0"></a-box>
+                <a-plane width="0.6" height="0.8" position="0 0 0.03" material="src: #wall-image-4; metalness: 0.2; roughness: 0.8"></a-plane>
+            </a-entity>
+
+            <!-- King Bed (Facing West) -->
+            <a-entity position="-5.75 0 -2">
+                <a-entity gltf-model="#bed-model" scale="1 1 1" shadow="cast: true"></a-entity>
+
+                <!-- Bedside Tables -->
+                <a-box width="0.4" height="0.4" depth="0.4" position="-1.15 0 -0.8" color="#5d4037" shadow="cast: true">
+                    <a-entity gltf-model="#lamp-model" position="0 0.2 0" scale="1 1 1" shadow="cast: true"></a-entity>
+                </a-box>
+                <a-box width="0.4" height="0.4" depth="0.4" position="1.15 0 -0.8" color="#5d4037" shadow="cast: true">
+                    <a-entity gltf-model="#lamp-model" position="0 0.2 0" scale="1 1 1" shadow="cast: true"></a-entity>
+                </a-box>
+            </a-entity>
+
+            <!-- PROFESSIONAL STORAGE: Bespoke Built-in Wardrobe (Opposite Washroom Door) -->
+            <a-entity position="-9 1.1 1.7">
+                <a-box width="2" height="2.2" depth="0.6" material="src: #wood-floor; color: #4e342e" shadow="cast: true"></a-box>
+                <!-- Functional Handles (4 Metallic Cylinders - Offset for Visibility) -->
+                <a-entity position="-0.75 0 0.32">
+                    <a-cylinder radius="0.02" height="1.0" color="#c0c0c0" metalness="0.9" roughness="0.1"></a-cylinder>
+                </a-entity>
+                <a-entity position="-0.25 0 0.32">
+                    <a-cylinder radius="0.02" height="1.0" color="#c0c0c0" metalness="0.9" roughness="0.1"></a-cylinder>
+                </a-entity>
+                <a-entity position="0.25 0 0.32">
+                    <a-cylinder radius="0.02" height="1.0" color="#c0c0c0" metalness="0.9" roughness="0.1"></a-cylinder>
+                </a-entity>
+                <a-entity position="0.75 0 0.32">
+                    <a-cylinder radius="0.02" height="1.0" color="#c0c0c0" metalness="0.9" roughness="0.1"></a-cylinder>
+                </a-entity>
+            </a-entity>
+            
+            <!-- Bedroom Mini-Fridge (Removed) -->
+
+            <!-- SHOE RACK (Near entrance boundary - Internal) -->
+            <a-entity position="-4.3 0.4 1.5">
+                <a-box width="0.5" height="0.8" depth="1.0" color="#eeeeee" shadow="cast: true"></a-box>
+                <a-box width="0.5" height="0.02" depth="1.0" position="0 0.1 0" color="#444"></a-box>
+                <a-box width="0.5" height="0.02" depth="1.0" position="0 -0.2 0" color="#444"></a-box>
+            </a-entity>
+
+            <!-- ENTRANCE ZONE (CLEAR) -->
+            <!-- Area between X=-4 and X=-7, Z=0 to Z=3 is now clear for traffic -->
+
+
+            <!-- PROFESSIONAL CHEF'S KITCHEN -->
+            <!-- PROFESSIONAL CHEF'S KITCHEN (Wall-to-Wall Fit - Resolved Flicker & Embedding) -->
+            <a-entity position="6.5 0.05 -2.4" rotation="0 90 0">
+                <a-entity gltf-model="#kitchen-model" scale="1.15 1.15 1.35" shadow="cast: true"></a-entity>
+            </a-entity>
+            <!-- PROFESSIONAL REFRIGERATORS (Placed flush to wall at X=8.45 - Black fridge shifted back) -->
+            <a-entity position="8.45 0 -0.6" rotation="0 0 0">
+                <a-entity gltf-model="#fridge-model-1" scale="0.85 0.85 0.85" shadow="cast: true"></a-entity>
+            </a-entity>
+            <a-entity position="8.45 0 0.6" rotation="0 -90 0">
+                <a-entity gltf-model="#fridge-model-2" scale="0.85 0.85 0.85" shadow="cast: true"></a-entity>
+            </a-entity>
+
+            <!-- Removed Obstructive Secondary Counter at Z=3 -->
+
+            <!-- Side-by-Side Professional Refrigerator Units (Relocated to Window Wall & Separated) -->
+            <!-- Positioned close to side wall at X=9. Facing Kitchen Door at X=4. -->
+            <!-- Removed Professional Refrigerator Units -->
+
+            <!-- Removed Kitchen Bench (Island) and Pendant Lighting -->
+
+            <!-- ZONE DIVIDER: Vertical Wood Slats -->
+            <a-entity position="6.5 1.5 0.5">
+                <!-- Slats spaced apart -->
+                <a-box width="0.05" height="3" depth="0.1" position="-1.0 0 0" color="#5d4037"></a-box>
+                <a-box width="0.05" height="3" depth="0.1" position="-0.6 0 0" color="#5d4037"></a-box>
+                <a-box width="0.05" height="3" depth="0.1" position="-0.2 0 0" color="#5d4037"></a-box>
+                <a-box width="0.05" height="3" depth="0.1" position="0.2 0 0" color="#5d4037"></a-box>
+                <a-box width="0.05" height="3" depth="0.1" position="0.6 0 0" color="#5d4037"></a-box>
+                <a-box width="0.05" height="3" depth="0.1" position="1.0 0 0" color="#5d4037"></a-box>
+            </a-entity>
+
+            <!-- DINING ROOM ZONE (Equidistant - Center Z=2.6) -->
+            <a-entity position="6.5 0 2.6">
+                <!-- Modern Dining Table (3D Model Upgrade - Refined Scale) -->
+                <a-entity gltf-model="#dining-table-model" scale="0.04 0.04 0.04" rotation="0 90 0" shadow="cast: true"></a-entity>
+            </a-entity>
+
+            <!-- DESIGNER PENDANT LIGHTING (Moved to Dining - Aligned) -->
+            <a-entity position="6.5 2.5 2.6">
+                <!-- Slim track -->
+                <a-box width="1.5" height="0.05" depth="0.05" color="#111"></a-box>
+                <!-- 3 Pendants -->
+                <a-entity position="-0.5 -0.5 0">
+                    <a-cylinder radius="0.02" height="1.0" color="#111"></a-cylinder> <!-- Cord -->
+                    <a-sphere radius="0.15" position="0 -0.5 0" color="#fff" material="emissive: #fff; emissiveIntensity: 0.8"></a-sphere>
+                    <a-light type="point" intensity="0.5" distance="3" color="#ffcc80" position="0 -0.5 0"></a-light>
+                </a-entity>
+                <a-entity position="0 -0.5 0">
+                    <a-cylinder radius="0.02" height="1.0" color="#111"></a-cylinder>
+                    <a-sphere radius="0.15" position="0 -0.5 0" color="#fff" material="emissive: #fff; emissiveIntensity: 0.8"></a-sphere>
+                    <a-light type="point" intensity="0.5" distance="3" color="#ffcc80" position="0 -0.5 0"></a-light>
+                </a-entity>
+                <a-entity position="0.5 -0.5 0">
+                    <a-cylinder radius="0.02" height="1.0" color="#111"></a-cylinder>
+                    <a-sphere radius="0.15" position="0 -0.5 0" color="#fff" material="emissive: #fff; emissiveIntensity: 0.8"></a-sphere>
+                    <a-light type="point" intensity="0.5" distance="3" color="#ffcc80" position="0 -0.5 0"></a-light>
+                </a-entity>
+            </a-entity>
+
+        </a-entity>
+        
+        <!-- --- GARAGE --- -->
+        <a-entity id="garage" position="15 0.1 -10">
+            
+            <!-- Garage Floor (Expanded for 2 cars) -->
+            <a-plane width="8" height="7" rotation="-90 0 0" position="0 0 0" material="src: #pavement-texture; repeat: 4 3.5; color: #999; roughness: 0.7" shadow="receive: true"></a-plane>
+            
+            <!-- Garage Walls (Expanded) -->
+            <!-- Back Wall -->
+            <a-box width="8" height="3" depth="0.2" position="0 1.5 -3.5" material="src: #villa-wall-texture; repeat: 4 1.5; roughness: 0.8" shadow="cast: true"></a-box>
+            <!-- Back Wall Interior Lining -->
+            <a-plane width="8" height="3" position="0 1.5 -3.39" material="src: #interior-wall-texture; repeat: 4 1; roughness: 0.8"></a-plane>
+
+            <!-- Left Wall -->
+            <a-box width="0.2" height="3" depth="7" position="-4 1.5 0" material="src: #villa-wall-texture; repeat: 3.5 1.5; roughness: 0.8" shadow="cast: true"></a-box>
+            <!-- Left Wall Interior Lining -->
+            <a-plane width="7" height="3" position="-3.89 1.5 0" rotation="0 90 0" material="src: #interior-wall-texture; repeat: 3.5 1; roughness: 0.8"></a-plane>
+
+            <!-- Right Wall -->
+            <a-box width="0.2" height="3" depth="7" position="4 1.5 0" material="src: #villa-wall-texture; repeat: 3.5 1.5; roughness: 0.8" shadow="cast: true"></a-box>
+            <!-- Right Wall Interior Lining -->
+            <a-plane width="7" height="3" position="3.89 1.5 0" rotation="0 -90 0" material="src: #interior-wall-texture; repeat: 3.5 1; roughness: 0.8"></a-plane>
+            
+            <!-- Front Wall Segments (around door) -->
+            <a-box width="1" height="3" depth="0.2" position="-3.5 1.5 3.5" material="src: #villa-wall-texture; repeat: 0.5 1.5; roughness: 0.8" shadow="cast: true"></a-box>
+            <a-plane width="1" height="3" position="-3.5 1.5 3.39" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 0.5 1; roughness: 0.8"></a-plane>
+            
+            <a-box width="1" height="3" depth="0.2" position="3.5 1.5 3.5" material="src: #villa-wall-texture; repeat: 0.5 1.5; roughness: 0.8" shadow="cast: true"></a-box>
+            <a-plane width="1" height="3" position="3.5 1.5 3.39" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 0.5 1; roughness: 0.8"></a-plane>
+            
+            <a-box width="6" height="0.5" depth="0.2" position="0 2.75 3.5" material="src: #villa-wall-texture; repeat: 3 0.25; roughness: 0.8" shadow="cast: true"></a-box>
+            <a-plane width="6" height="0.5" position="0 2.75 3.39" rotation="0 180 0" material="src: #interior-wall-texture; repeat: 3 0.25; roughness: 0.8"></a-plane>
+            
+            <!-- Garage Door (Modern Sectional Style - OPEN) -->
+            <a-entity id="garage-door" position="0 3.5 3.5" rotation="90 0 0">
+                <a-box width="6" height="2.5" depth="0.1" color="#424242" material="metalness: 0.6; roughness: 0.3" shadow="cast: true">
+                    <!-- Horizontal panels detail -->
+                    <a-box width="6" height="0.02" depth="0.12" position="0 0.8 0" color="#333"></a-box>
+                    <a-box width="6" height="0.02" depth="0.12" position="0 0.4 0" color="#333"></a-box>
+                    <a-box width="6" height="0.02" depth="0.12" position="0 0 0" color="#333"></a-box>
+                    <a-box width="6" height="0.02" depth="0.12" position="0 -0.4 0" color="#333"></a-box>
+                    <a-box width="6" height="0.02" depth="0.12" position="0 -0.8 0" color="#333"></a-box>
+                    <!-- Door handles -->
+                    <a-cylinder radius="0.03" height="0.4" rotation="0 0 90" position="0 -0.8 0.08" color="#888"></a-cylinder>
+                </a-box>
+            </a-entity>
+            
+            <!-- Garage Roof (Flat Modern Style - Expanded) -->
+            <a-box width="8.5" height="0.2" depth="7.5" position="0 3.2 0" material="src: #concrete-dark; color: #424242; roughness: 0.9; metalness: 0.05" shadow="cast: true"></a-box>
+            
+            <!-- Interior Lighting -->
+            <a-entity position="0 2.8 0">
+                <a-box width="1.5" height="0.05" depth="0.5" color="#fff" material="emissive: #fff; emissiveIntensity: 0.8"></a-box>
+                <a-entity light="type: point; intensity: 2; distance: 10; color: #fff; castShadow: true"></a-entity>
+            </a-entity>
+            
+            <!-- Modern Cars inside Garage (Upgraded Models - Unified Scale) -->
+            <a-entity position="-2 0 0" rotation="0 180 0">
+                <a-gltf-model src="#car-1-model" scale="0.01 0.01 0.01" shadow="cast: true; receive: true"></a-gltf-model>
+            </a-entity>
+            <a-entity position="2 0.58 0" rotation="0 180 0">
+                <a-gltf-model src="#car-2-model" scale="0.7 0.7 0.7" shadow="cast: true; receive: true"></a-gltf-model>
+            </a-entity>
+            
+        </a-entity>
+        
+        <!-- --- OUTDOOR ENHANCEMENTS --- -->
+        <!-- Pool Deck (FIXED: Proper Basin - Relocated West near fence) -->
+        <a-entity id="pool-area" position="-14 0 6">
+            <!-- Deck Borders (Pool Outskirt - Aligned Tiles) -->
+            <a-box width="10" height="0.5" depth="1" position="0 0.25 -3.5" material="src: #pool-wall-tiles-texture; repeat: 5 1" shadow="receive: true"></a-box> <!-- North -->
+            <a-box width="10" height="0.5" depth="1" position="0 0.25 3.5" material="src: #pool-wall-tiles-texture; repeat: 5 1" shadow="receive: true"></a-box> <!-- South -->
+            <a-box width="3" height="0.5" depth="6" position="-5.5 0.25 0" material="src: #pool-wall-tiles-texture; repeat: 1.5 3" shadow="receive: true"></a-box> <!-- West (Expanded for Lounge) -->
+            <a-box width="1" height="0.5" depth="6" position="4.5 0.25 0" material="src: #pool-wall-tiles-texture; repeat: 0.5 3" shadow="receive: true"></a-box> <!-- East -->
+            
+            <!-- Pool Interior Walls/Floor (High Detail Tiles) -->
+             <a-box width="8.2" height="0.6" depth="6.2" position="0 0.1 0" material="src: #pool-tiles; repeat: 8 1; side: double; roughness: 0.1; metalness: 0.2" shadow="receive: true"></a-box>
+             <a-plane width="8" height="6" position="0 0.11 0" rotation="-90 0 0" material="src: #pool-tiles; repeat: 8 6; roughness: 0.1; metalness: 0.2" shadow="receive: true"></a-plane>
+             
+             <!-- Caustics (Animated Light Refraction on Floor) -->
+             <a-plane width="8" height="6" position="0 0.15 0" rotation="-90 0 0" 
+                      material="src: #caustics; transparent: true; opacity: 0.4; blending: additive; repeat: 2 1.5" 
+                      caustic-motion shadow="receive: false"></a-plane>
+
+            <!-- Water (With Multi-Layered Displacement) - Height/Amplitude tuned to avoid deck flicker -->
+            <a-plane 
+                width="8" height="6" 
+                rotation="-90 0 0" 
+                position="0 0.4 0"
+                material="src: #water; transparent: true; opacity: 0.5; roughness: 0.05; metalness: 0.95; side: double; color: #4fc3f7"
+                water-displacement="speed: 0.002; amplitude: 0.05"
+                shadow="receive: true"
+             ></a-plane>
+             
+             <!-- Pool Accent Lighting (Blue light bounce) -->
+             <a-entity light="type: point; color: #81d4fa; intensity: 0.8; distance: 8" position="0 1 0"></a-entity>
+             
+             <!-- Pool Ladder (Refined Metallic) -->
+             <a-entity position="3.5 0.5 -1.5" rotation="0 -90 0">
+                  <a-cylinder height="2.0" radius="0.04" position="0 0.2 0" material="color: #fff; metalness: 1; roughness: 0.1" rotation="0 0 0"></a-cylinder> <!-- Left Tube -->
+                  <a-cylinder height="2.0" radius="0.04" position="0.5 0.2 0" material="color: #fff; metalness: 1; roughness: 0.1" rotation="0 0 0"></a-cylinder> <!-- Right Tube -->
+                  <!-- Rungs -->
+                  <a-cylinder height="0.5" radius="0.03" position="0.25 0.2 0" rotation="0 0 90" material="color: #fff; metalness: 1; roughness: 0.1"></a-cylinder>
+                  <a-cylinder height="0.5" radius="0.03" position="0.25 -0.2 0" rotation="0 0 90" material="color: #fff; metalness: 1; roughness: 0.1"></a-cylinder>
+                  <a-cylinder height="0.5" radius="0.03" position="0.25 -0.6 0" rotation="0 0 90" material="color: #fff; metalness: 1; roughness: 0.1"></a-cylinder>
+                  <!-- Handles (Curve approximation) -->
+                  <a-torus radius="0.25" radius-tubular="0.04" arc="180" position="0.25 1 0" rotation="0 90 0" material="color: #fff; metalness: 1; roughness: 0.1"></a-torus>
+             </a-entity>
+             
+             <!-- Final Professional Pool Furniture (Lifted to prevent embedding) -->
+             <a-gltf-model src="textures/pool_lounge_chair.glb" position="-5.5 0.75 -1.5" rotation="0 0 0" scale="1 1 1" shadow="cast: true"></a-gltf-model>
+             <a-gltf-model src="textures/pool_lounge_chair.glb" position="-5.5 0.75 1.5" rotation="0 0 0" scale="1 1 1" shadow="cast: true"></a-gltf-model>
+             
+             <!-- Umbrellas Removed for a cleaner look -->
+
+        </a-entity>
+        
+        <!-- Path to Villa (Walkway - Adjusted Y to 0.12 to match villa floor level and avoid flicker) -->
+        <a-plane position="0 0.12 7" rotation="-90 0 0" width="3" height="26" material="src: #pavement-texture; repeat: 1 8" shadow="receive: true"></a-plane>
+        
+        <!-- Driveway Branch (Main horizontal segment - Adjusted Y to 0.11 and X to start at walkway edge) -->
+        <!-- Center at 8.75, width 14.5 covers x from 1.5 to 16. Walkway edge is at 1.5. -->
+        <a-plane position="8.75 0.11 7" rotation="-90 0 0" width="14.5" height="4" material="src: #pavement-texture; repeat: 4.5 1" shadow="receive: true"></a-plane>
+
+        <!-- Driveway Extension to Garage (Connecting the horizontal branch to the garage) -->
+        <!-- Adjusted Y to 0.10 to avoid flicker with the branch. Covers z from -6.5 to 5. Garage entrance is at z=-6.5. -->
+        <a-plane position="14 0.10 -0.75" rotation="-90 0 0" width="4" height="11.5" material="src: #pavement-texture; repeat: 1 3" shadow="receive: true"></a-plane>
+
+
+        <!-- Left Side Trees (Removed to clear space for the new garage driveway) -->
+
+
+
+        <!-- Right Side Trees (Redesigned for visibility) -->
+        <a-entity position="12 0 10">
+             <a-cylinder height="2" radius="0.3" position="0 1 0" color="#5d4037" shadow="cast: true"></a-cylinder>
+             <a-sphere radius="2.5" position="0 4.5 0" color="#2e7d32" shadow="cast: true"></a-sphere>
+             <a-sphere radius="2" position="0 6.5 0" color="#388e3c" shadow="cast: true"></a-sphere>
+        </a-entity>
+        <a-entity position="12 0 14">
+             <a-cylinder height="2" radius="0.3" position="0 1 0" color="#5d4037" shadow="cast: true"></a-cylinder>
+             <a-sphere radius="2.5" position="0 4.5 0" color="#2e7d32" shadow="cast: true"></a-sphere>
+             <a-sphere radius="2" position="0 6.5 0" color="#388e3c" shadow="cast: true"></a-sphere>
+        </a-entity>
+        <a-entity position="12 0 18">
+             <a-cylinder height="2" radius="0.3" position="0 1 0" color="#5d4037" shadow="cast: true"></a-cylinder>
+             <a-sphere radius="2.5" position="0 4.5 0" color="#2e7d32" shadow="cast: true"></a-sphere>
+             <a-sphere radius="2" position="0 6.5 0" color="#388e3c" shadow="cast: true"></a-sphere>
+        </a-entity>
+        
+        <!-- --- LIGHTING (Golden Hour) --- -->
+        <!-- Sun (Warmer, Lower) -->
+        <a-entity light="type: directional; color: #ffd54f; intensity: 1.1; castShadow: true; shadowMapHeight: 2048; shadowMapWidth: 2048" position="-8 6 8"></a-entity>
+        <!-- Ambient (Softer) -->
+        <a-entity light="type: hemisphere; color: #fff8e1; groundColor: #5d4037; intensity: 0.5"></a-entity>
+        
+        <!-- --- PLAYER --- -->
+        <a-entity id="rig" position="0 1.6 25" simple-nav>
+            <a-entity camera look-controls wasd-controls="acceleration: 20" position="0 0 0">
+                <a-cursor color="white" scale="0.5 0.5 0.5" raycaster="objects: .clickable"></a-cursor>
+            </a-entity>
+        </a-entity>
+
+    </a-scene>
+</body>
+</html>
